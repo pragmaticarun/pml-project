@@ -1,0 +1,114 @@
+---
+title: Practical Machine Learning Project - Build model for Qualitative Activity Recognition
+  of Weight Lifting Exercises
+author: "Arunkumar Maniam rajan"
+date: "28 September 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,cache = TRUE)
+```
+## Synopsis
+
+In this project we would try to build a model to predict with how much quality an activity is performed.
+This project uses the data from study [WLE] (http://groupware.les.inf.puc-rio.br/har#weight_lifting_exercises)
+
+
+## Importing data set. 
+
+Training data and test data have been downloaded from [training] (https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv)
+and [testing] (https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv)
+
+### Loading the data set and importing packages
+
+This project uses caret for building the model.
+
+```{r}
+library(caret)
+training <- read.csv("~/Downloads/pml-training.csv")
+testing <- read.csv("~/Downloads/pml-testing.csv")
+```
+
+## Checking the nature of data
+The best way to start the analysis is to check the nature of the data. Use various tools like summary, structure, nrows etc.
+The things to look at is 
+1. Which columns has NA's
+2. Which columns has not valid data.
+3. What features the test set contains.
+
+Also checked the experiment to know what each column means. This will help us what covariants or the features to select.
+```{r eval=FALSE}
+str(training)
+str(testing)
+```
+
+##Preprocessing
+### Near zero values
+Check for near 0 columns.
+
+```{r}
+pre_nzv <- nearZeroVar(training,saveMetrics=T)
+pre_nzv[pre_nzv$nzv==TRUE,]
+```
+For our prediction we will ignore the above variables.
+
+### Check for NA values for 
+Another important step in pre processing is to check for the NA values. In this step there are rows with new_win=yes that has many #DIV0 and empty values.
+need to impute them if required using pre-processing using "knnImpute Method"
+```{r eval=FALSE}
+summary(training)
+```
+
+## Select covariants
+
+Check the selected covariants does not contain any NA.
+```{r}
+predictors <- training[,grep("^accell|^gyro|^magnet|^total|^roll|^pitch|^yaw|^classe",colnames(training))]
+predictors_test <- testing[,grep("^accell|^gyro|^magnet|^total|^roll|^pitch|^yaw",colnames(testing))]
+```
+```{r eval=FALSE}
+summary(predictors_test)
+summary(predictors)
+```
+
+
+## Selecting training algorithm.
+Random forests and Boosting have better accuracies. I have imported caret library and tried below stuff
+1. Prepocess with PCA and check if lesser colnames can be used.
+2. Use randomForest()  from caret package without cross validation and check the accuracy.
+3. Use train method with some K-fold cross validation and check accuracy.
+
+What I observed is without cross validation the OOB and accuracy are on par with models with CV.
+
+CV used here is k-fold with k = 10 and number of trees 500 (default)
+
+```{r eval=FALSE}
+rfmodel_1 <- train(classe~.,data=predictors,trControl=fitControl,method="rf")
+rfmodel_2 <- randomForest(classe~.,data=predictors)
+```
+```{r}
+fitControl <- trainControl(number=10,method="cv")
+rfmodel_3 <- train(classe~.,data=predictors,trControl=fitControl,method="rf",preProcess="knnImpute")
+rfmodel_3
+rfmodel_3$finalModel
+plot(rfmodel_3$finalModel)
+```
+
+## Metrics
+
+The accuracy and out-of-Bag errors are given below and this gets a 100 % correct on the course quiz with 20 test cases.
+
+```{r}
+rfmodel_3
+```
+
+## Confusion Matrix
+
+```{r}
+rfmodel_3$finalModel
+```
+
+##Conclusion
+
+Thus we have trained a model that has a **accuracy of 99.5% and 0.38% Out-of-Bag error**
